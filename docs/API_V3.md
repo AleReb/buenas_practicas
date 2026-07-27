@@ -73,6 +73,35 @@ cadena opaca: el cliente no debe interpretarlo, modificarlo ni construirlo.
 `has_more: false` termina la paginación. `next_cursor` puede ser `null` cuando no
 hay resultados adicionales.
 
+## Orden garantizado
+
+Al concatenar todas las páginas, las mediciones V3 están ordenadas
+lexicográficamente por:
+
+```text
+id_sensor ASC, fecha ASC, id_dato ASC
+```
+
+Este es el **orden de transporte**. Permite reanudar mediante el cursor y recorrer
+el índice sin usar `OFFSET`. No es un orden cronológico global: al comenzar el
+siguiente sensor, `fecha` puede ser anterior a la última fecha del sensor
+precedente.
+
+Un consumidor no debe asumir que el NDJSON está ordenado sólo por fecha. Para
+Excel, gráficos o análisis temporal se recomienda crear una salida derivada con:
+
+```text
+fecha ASC, id_sensor ASC, id_dato ASC
+```
+
+El reordenamiento se hace después de completar la descarga. No se debe modificar
+el orden de las filas todavía no confirmadas ni construir un cursor desde el
+orden del CSV.
+
+Las implementaciones que usen fechas con diferentes zonas u offsets deben
+normalizarlas a una referencia común antes de ordenar. Comparar fechas como texto
+sólo es seguro cuando todas usan la misma representación ISO 8601 y zona horaria.
+
 ## Descarga NDJSON reanudable
 
 ```http
@@ -141,3 +170,7 @@ del cursor requiere una nueva versión de la API.
 
 Los endpoints V3 pueden convivir con rutas legacy; no es necesario reemplazarlas
 en el mismo despliegue.
+
+El orden de transporte también forma parte del contrato. Cambiarlo a
+`fecha, id_sensor, id_dato` sin cambiar la versión invalidaría los cursores
+existentes y podría producir filas omitidas o duplicadas.

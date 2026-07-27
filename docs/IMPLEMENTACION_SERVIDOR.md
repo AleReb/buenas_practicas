@@ -92,6 +92,28 @@ AND (
 Todos los valores se envían como parámetros del driver. Los signos `?` son
 marcadores conceptuales; cada biblioteca usa su propia sintaxis.
 
+## Separar transporte y consumo
+
+El servidor y el exportador resuelven problemas diferentes:
+
+```text
+Base de datos
+  → paginación por sensor/fecha/dato
+  → NDJSON reanudable
+  → archivo completo confirmado
+  → ordenamiento por fecha/sensor/dato
+  → CSV, gráficos o análisis
+```
+
+No se recomienda cambiar el `ORDER BY` de la consulta sólo para que el CSV se vea
+cronológico. Eso cambia el cursor y puede impedir el uso del índice existente.
+El contrato conserva el orden eficiente de transporte; una etapa posterior crea
+el orden apropiado para consumo.
+
+Un sistema nuevo que disponga de un índice `(fecha, id_sensor, id_dato)` puede
+diseñar una API cronológica, pero debe definir un cursor coherente y versionar el
+contrato de forma independiente.
+
 ## Cursor
 
 El cursor representa:
@@ -119,6 +141,40 @@ bloque, emite sus filas, emite el checkpoint y continúa desde el cursor.
 El proxy inverso debe permitir streaming y tener buffering desactivado para esta
 ruta. También deben configurarse timeouts, compresión y límites de concurrencia
 acordes al tamaño esperado.
+
+## Exportación CSV independiente del lenguaje
+
+Para archivos pequeños se pueden guardar las mediciones en memoria y ordenarlas.
+Para históricos grandes debe usarse alguna de estas estrategias:
+
+- una base temporal local con índice por fecha, sensor y dato;
+- ordenamiento externo en bloques y mezcla ordenada;
+- un trabajo batch en la base de datos o plataforma analítica;
+- archivos particionados por día o mes que ya estén ordenados.
+
+El exportador debe escribir a un nombre temporal, cerrar y sincronizar el archivo
+y después renombrarlo como CSV definitivo. Si falla, el archivo parcial no debe
+publicarse.
+
+Pseudocódigo portable:
+
+```text
+abrir almacenamiento temporal
+
+para cada línea del NDJSON.GZ:
+    descomprimir y analizar JSON
+    si contiene _error: detener
+    si contiene _meta: validar checkpoint y continuar
+    guardar medición con claves fecha, id_sensor, id_dato
+
+si la descarga no está confirmada como completa:
+    no publicar CSV
+
+descubrir columnas y fijar un orden estable
+recorrer almacenamiento por fecha, id_sensor, id_dato
+escribir CSV.part con escape CSV estándar y UTF-8
+cerrar, sincronizar y renombrar CSV.part a CSV
+```
 
 ## Escala y operación
 

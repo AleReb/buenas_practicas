@@ -18,6 +18,8 @@ el sensor de origen mediante `id_sensor`.
 ## Qué se puede reutilizar
 
 - El contrato HTTP, los cursores y el formato NDJSON no dependen de Python.
+- El NDJSON usa un orden técnico reanudable; el CSV derivado usa un orden
+  cronológico apropiado para personas, gráficos y análisis.
 - El servidor puede implementarse con Java, JavaScript/TypeScript, Go, C#,
   PHP, Python, Ruby u otro lenguaje.
 - El cliente puede ser una aplicación web, un proceso batch, una herramienta de
@@ -32,6 +34,8 @@ el sensor de origen mediante `id_sensor`.
   algoritmo y SQL de referencia para cualquier backend.
 - [`docs/CLIENTES.md`](docs/CLIENTES.md): ejemplos con cURL, JavaScript,
   Python, PHP y Go.
+- [`docs/DESCARGAS_Y_CSV.md`](docs/DESCARGAS_Y_CSV.md): procedimiento
+  recomendado para descargar, reanudar, verificar y convertir a CSV.
 - [`docs/INTEGRACION.md`](docs/INTEGRACION.md): migración gradual desde rutas
   legacy y ejemplo específico de Flask.
 
@@ -39,6 +43,7 @@ el sensor de origen mediante `id_sensor`.
 
 - `historico_v3.py`: servidor V3 como Blueprint de Flask.
 - `download_v3.py`: descargador con checkpoints, reintentos y gzip.
+- `ndjson_to_csv.py`: conversor independiente de NDJSON o NDJSON.GZ a CSV.
 - `tests/`: pruebas unitarias.
 
 Instalación:
@@ -69,12 +74,22 @@ python download_v3.py \
   --device-id 224 \
   --start-date 2026-04-22 \
   --end-date 2026-04-22 \
-  --output-dir descargas
+  --output-dir descargas \
+  --csv
 ```
 
 El descargador procesa el dispositivo completo sin que el usuario tenga que
 enumerar sus sensores. Durante una caída conserva `.part` y `.state.json`; al
 completar genera `.ndjson.gz` y elimina los temporales.
+
+Con `--csv` también genera un archivo `.csv` cronológico, separado por punto y
+coma y codificado para Excel. El `.ndjson.gz` se conserva como respaldo compacto.
+
+Un archivo existente también se puede convertir sin volver a descargar:
+
+```bash
+python ndjson_to_csv.py descargas/dispositivo-224_2026-04-22_2026-04-22.ndjson.gz
+```
 
 ## Estado y alcance
 

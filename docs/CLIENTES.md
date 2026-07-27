@@ -90,7 +90,26 @@ while True:
 ```
 
 `download_v3.py` contiene una implementación más completa para NDJSON,
-reintentos, checkpoints y compresión.
+reintentos, checkpoints y compresión. La opción `--csv` genera automáticamente
+un CSV cuando la descarga queda confirmada:
+
+```bash
+python download_v3.py \
+  --device-id 224 \
+  --start-date 2026-04-22 \
+  --end-date 2026-07-27 \
+  --output-dir descargas \
+  --csv
+```
+
+El conversor también puede ejecutarse por separado:
+
+```bash
+python ndjson_to_csv.py descargas/*.ndjson.gz
+```
+
+Por defecto, el CSV se ordena globalmente por `fecha`, `id_sensor` e `id_dato`.
+Este orden es distinto del orden técnico de paginación del NDJSON.
 
 ## PHP
 

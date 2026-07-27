@@ -13,6 +13,8 @@ from typing import Any
 
 import requests
 
+from ndjson_to_csv import convert_file
+
 
 DEFAULT_API = "https://api-sensores.cmasccp.cl"
 
@@ -23,7 +25,16 @@ def atomic_json(path: Path, value: dict[str, Any]) -> None:
         json.dumps(value, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
-    os.replace(temporary, path)
+    for attempt in range(8):
+        try:
+            os.replace(temporary, path)
+            return
+        except PermissionError:
+            if attempt == 7:
+                raise
+            # En Windows, antivirus, indexadores o sincronizadores pueden
+            # mantener el checkpoint abierto durante un instante.
+            time.sleep(min(0.05 * (2**attempt), 1))
 
 
 def download(
@@ -40,6 +51,13 @@ def download(
     state_path = output_dir / f"{stem}.state.json"
     gzip_part = output_dir / f"{stem}.ndjson.gz.part"
     final_path = output_dir / f"{stem}.ndjson.gz"
+
+    if (
+        final_path.exists()
+        and not plain_part.exists()
+        and not state_path.exists()
+    ):
+        return final_path
 
     state: dict[str, Any] = {
         "cursor": None,
@@ -130,6 +148,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--end-date", required=True)
     parser.add_argument("--output-dir", type=Path, default=Path("descargas"))
     parser.add_argument("--api-url", default=DEFAULT_API)
+    parser.add_argument(
+        "--csv",
+        action="store_true",
+        help="Al finalizar, crea también un CSV y conserva el NDJSON.GZ.",
+    )
+    parser.add_argument(
+        "--csv-delimiter",
+        default=";",
+        help="Separador del CSV; por defecto ';' para Excel en español.",
+    )
+    parser.add_argument(
+        "--csv-sort-by",
+        choices=("fecha", "sensor", "original"),
+        default="fecha",
+        help="Orden del CSV; por defecto cronológico por fecha.",
+    )
     return parser.parse_args()
 
 
@@ -143,6 +177,13 @@ def main() -> None:
         args.output_dir,
     )
     print(f"Descarga completa: {path}", flush=True)
+    if args.csv:
+        csv_path, rows = convert_file(
+            path,
+            delimiter=args.csv_delimiter,
+            sort_by=args.csv_sort_by,
+        )
+        print(f"CSV completo: {csv_path} ({rows} filas)", flush=True)
 
 
 if __name__ == "__main__":
