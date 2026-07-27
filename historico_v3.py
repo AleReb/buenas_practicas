@@ -84,7 +84,7 @@ def create_historico_v3_blueprint(db_config: dict[str, Any]) -> Blueprint:
             cursor.execute(
                 """
                 SELECT id_dispositivo, codigo_interno, id_proyecto, descripcion
-                FROM sensores_dev.dispositivos
+                FROM dispositivos
                 WHERE id_dispositivo = %s
                 """,
                 (device_id,),
@@ -96,7 +96,7 @@ def create_historico_v3_blueprint(db_config: dict[str, Any]) -> Blueprint:
             cursor.execute(
                 """
                 SELECT id_sensor
-                FROM sensores_dev.sensores_en_dispositivo
+                FROM sensores_en_dispositivo
                 WHERE id_dispositivo = %s
                 ORDER BY id_sensor
                 """,
@@ -160,8 +160,8 @@ def create_historico_v3_blueprint(db_config: dict[str, Any]) -> Blueprint:
                 SELECT d.id_dato, d.fecha, d.fecha_insercion, d.id_sensor,
                        d.id_variable, d.id_sesion, d.valor,
                        v.descripcion AS variable_descripcion, v.unidad
-                FROM sensores_dev.datos AS d
-                LEFT JOIN sensores_dev.variables AS v
+                FROM datos AS d
+                LEFT JOIN variables AS v
                   ON v.id_variable = d.id_variable
                 WHERE {' AND '.join(clauses)}
                 ORDER BY d.id_sensor ASC, d.fecha ASC, d.id_dato ASC

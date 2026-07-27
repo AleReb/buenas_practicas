@@ -1,58 +1,86 @@
 # Buenas prácticas para históricos de sensores
 
-Repositorio de referencia para migrar gradualmente desde los endpoints legacy a
-una API V3 por dispositivo.
+Referencia independiente del lenguaje para diseñar, implementar y consumir una
+API de históricos por dispositivo. El contrato HTTP puede implementarse en
+cualquier servidor o framework; los archivos Python de este repositorio son una
+implementación de ejemplo, no un requisito del protocolo.
 
-## Objetivos
+## Modelo
 
-- Mantener funcionando las rutas antiguas.
-- Ocultar al cliente la relación dispositivo–sensores.
-- Evitar consultas masivas con `OFFSET` o listas enormes de sensores.
-- Permitir descargas NDJSON reanudables.
-- Acotar memoria y trabajo de MariaDB.
+Un **dispositivo** representa una estación o equipo y puede agrupar uno o más
+**sensores**. El cliente consulta por `id_dispositivo`; el servidor resuelve
+internamente todos los `id_sensor` asociados.
 
-## Componentes
+Los elementos `224` y `225` de `examples/dispositivos.example.json` son dos
+dispositivos de ejemplo, no dos sensores. Cada respuesta de mediciones identifica
+el sensor de origen mediante `id_sensor`.
 
-- `historico_v3.py`: Blueprint Flask que implementa V3.
-- `download_v3.py`: cliente de descarga con checkpoints, reintentos y gzip.
-- `docs/API_V3.md`: contrato y decisiones operativas.
-- `docs/INTEGRACION.md`: registro junto a las rutas legacy.
-- `tests/`: pruebas unitarias de cursores y validación.
+## Qué se puede reutilizar
 
-## Uso del descargador
+- El contrato HTTP, los cursores y el formato NDJSON no dependen de Python.
+- El servidor puede implementarse con Java, JavaScript/TypeScript, Go, C#,
+  PHP, Python, Ruby u otro lenguaje.
+- El cliente puede ser una aplicación web, un proceso batch, una herramienta de
+  línea de comandos o un servicio.
+- MariaDB es la base usada por la referencia. El patrón de paginación keyset se
+  puede trasladar a otros motores SQL ajustando su sintaxis de fechas.
+
+## Documentación
+
+- [`docs/API_V3.md`](docs/API_V3.md): contrato HTTP completo y errores.
+- [`docs/IMPLEMENTACION_SERVIDOR.md`](docs/IMPLEMENTACION_SERVIDOR.md):
+  algoritmo y SQL de referencia para cualquier backend.
+- [`docs/CLIENTES.md`](docs/CLIENTES.md): ejemplos con cURL, JavaScript,
+  Python, PHP y Go.
+- [`docs/INTEGRACION.md`](docs/INTEGRACION.md): migración gradual desde rutas
+  legacy y ejemplo específico de Flask.
+
+## Implementación Python de referencia
+
+- `historico_v3.py`: servidor V3 como Blueprint de Flask.
+- `download_v3.py`: descargador con checkpoints, reintentos y gzip.
+- `tests/`: pruebas unitarias.
+
+Instalación:
 
 ```bash
 python -m venv .venv
+```
+
+En Linux o macOS:
+
+```bash
 . .venv/bin/activate
 pip install -r requirements.txt
+```
 
+En PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+Ejemplo de descarga. Se deben reemplazar el dispositivo y las fechas por valores
+que existan en el servidor:
+
+```bash
 python download_v3.py \
   --device-id 224 \
-  --start-date 2026-07-23 \
-  --end-date 2026-07-23 \
+  --start-date 2026-04-22 \
+  --end-date 2026-04-22 \
   --output-dir descargas
 ```
 
-El cliente descarga un dispositivo completo; no requiere conocer sus sensores.
-Durante una caída conserva `.part` y `.state.json`. Al completar genera
-`ndjson.gz` y elimina los temporales.
+El descargador procesa el dispositivo completo sin que el usuario tenga que
+enumerar sus sensores. Durante una caída conserva `.part` y `.state.json`; al
+completar genera `.ndjson.gz` y elimina los temporales.
 
-## Índices comprobados en producción
+## Estado y alcance
 
-La implementación aprovecha los índices existentes:
+Esta primera fase cubre consulta paginada y streaming reanudable. Para
+exportaciones de varios años o muchos dispositivos se recomienda crear trabajos
+asíncronos y entregar el resultado desde almacenamiento de objetos.
 
-```text
-datos:                      (id_sensor, fecha)
-sensores_en_dispositivo:    (id_dispositivo, id_sensor)
-```
-
-No se incluyó ninguna migración de base de datos.
-
-Los resultados se ordenan por `id_sensor`, `fecha` e `id_dato`. Este orden
-permite recorrer el índice sin ordenar todo el rango histórico en cada página.
-
-## Estado
-
-Primera fase: consulta paginada y streaming reanudable. Para descargas de varios
-años y muchos dispositivos, la fase siguiente debe usar exportaciones
-asíncronas y almacenamiento externo.
+Antes de una exposición pública deben añadirse autenticación, autorización por
+proyecto, rate limiting, observabilidad y límites de concurrencia.
