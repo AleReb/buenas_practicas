@@ -101,6 +101,61 @@ python download_v3.py \
   --csv-sort-by fecha
 ```
 
+## Formato largo y formato ancho
+
+El formato largo conserva una medición por fila:
+
+```text
+fecha                id_sensor  variable       valor
+2026-04-22T15:34:24  1039       Temperatura    20.5
+2026-04-22T15:34:24  1039       Humedad        46.7
+```
+
+Es apropiado para bases de datos, herramientas analíticas y gráficos que filtran
+por variable.
+
+El formato ancho o pivot usa una fila por dispositivo y fecha:
+
+```text
+fecha                sensor_1039__...Temperatura  sensor_1039__...Humedad
+2026-04-22T15:34:24  20.5                          46.7
+```
+
+Se genera con:
+
+```bash
+python ndjson_to_csv.py \
+  descargas_completas/*.ndjson.gz \
+  --layout wide
+```
+
+O directamente después de descargar:
+
+```bash
+python download_v3.py \
+  --device-id 225 \
+  --start-date 2026-04-22 \
+  --end-date 2026-07-27 \
+  --output-dir descargas_completas \
+  --csv \
+  --csv-layout wide
+```
+
+El archivo ancho usa el nombre `*.wide.csv`, por lo que no reemplaza el CSV
+largo.
+
+Cada columna se identifica con sensor, variable, descripción y unidad:
+
+```text
+sensor_1039__variable_3__Grados celcius [°C]
+sensor_1041__variable_3__Grados celcius [°C]
+```
+
+Incluir `id_sensor` evita mezclar dos instrumentos que miden la misma variable.
+Sólo se combinan mediciones cuya `fecha` sea exactamente igual. Si una serie no
+tiene medición en ese instante, la celda queda vacía. No se deben aproximar
+horarios ni rellenar valores sin una regla de negocio explícita.
+
 ## Convertir archivos existentes
 
 Un archivo:
@@ -134,6 +189,7 @@ El conversor:
 - procesa el archivo sin cargar todas las mediciones en memoria;
 - ordena cronológicamente usando una base SQLite temporal en disco;
 - descubre las columnas presentes;
+- puede producir formato largo o pivot ancho;
 - conserva caracteres Unicode;
 - serializa objetos o arreglos anidados como JSON dentro de la celda;
 - ignora líneas `_meta`;

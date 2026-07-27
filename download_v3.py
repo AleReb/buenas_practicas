@@ -164,6 +164,12 @@ def parse_args() -> argparse.Namespace:
         default="fecha",
         help="Orden del CSV; por defecto cronológico por fecha.",
     )
+    parser.add_argument(
+        "--csv-layout",
+        choices=("long", "wide"),
+        default="long",
+        help="Formato largo o variables como columnas; por defecto long.",
+    )
     return parser.parse_args()
 
 
@@ -182,8 +188,12 @@ def main() -> None:
             path,
             delimiter=args.csv_delimiter,
             sort_by=args.csv_sort_by,
+            layout=args.csv_layout,
         )
-        print(f"CSV completo: {csv_path} ({rows} filas)", flush=True)
+        print(
+            f"CSV completo: {csv_path} ({rows} mediciones procesadas)",
+            flush=True,
+        )
 
 
 if __name__ == "__main__":

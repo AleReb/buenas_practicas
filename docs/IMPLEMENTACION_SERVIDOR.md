@@ -156,6 +156,15 @@ El exportador debe escribir a un nombre temporal, cerrar y sincronizar el archiv
 y después renombrarlo como CSV definitivo. Si falla, el archivo parcial no debe
 publicarse.
 
+Para crear un CSV ancho, el exportador agrupa por `(id_dispositivo, fecha)` y
+crea una columna por `(id_sensor, id_variable)`. La descripción y unidad pueden
+aparecer en el encabezado, pero los identificadores deben conservarse para evitar
+colisiones entre sensores que miden la misma variable.
+
+Una serie ausente en una fecha produce una celda vacía. Combinar timestamps
+cercanos, interpolar o arrastrar el último valor son decisiones de negocio y no
+deben formar parte del contrato base.
+
 Pseudocódigo portable:
 
 ```text

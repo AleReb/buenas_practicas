@@ -99,10 +99,83 @@ class CsvConversionTests(unittest.TestCase):
                 ["10", "20"],
             )
 
+    def test_wide_layout_places_series_in_columns(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "history.ndjson"
+            records = [
+                {
+                    "id_dispositivo": 225,
+                    "codigo_interno": "HIRIPRO-V2",
+                    "id_proyecto": 18,
+                    "id_sensor": 1039,
+                    "id_variable": 3,
+                    "variable_descripcion": "Grados celcius",
+                    "unidad": "°C",
+                    "fecha": "2026-04-22T15:34:24",
+                    "valor": 20.5,
+                    "id_dato": 2,
+                },
+                {
+                    "id_dispositivo": 225,
+                    "codigo_interno": "HIRIPRO-V2",
+                    "id_proyecto": 18,
+                    "id_sensor": 1039,
+                    "id_variable": 3,
+                    "variable_descripcion": "Grados celcius",
+                    "unidad": "°C",
+                    "fecha": "2026-04-22T15:38:54",
+                    "valor": 20.8,
+                    "id_dato": 3,
+                },
+                {
+                    "id_dispositivo": 225,
+                    "codigo_interno": "HIRIPRO-V2",
+                    "id_proyecto": 18,
+                    "id_sensor": 1041,
+                    "id_variable": 3,
+                    "variable_descripcion": "Grados celcius",
+                    "unidad": "°C",
+                    "fecha": "2026-04-22T15:34:24",
+                    "valor": 21.801,
+                    "id_dato": 1,
+                },
+            ]
+            source.write_text(
+                "".join(
+                    json.dumps(record, ensure_ascii=False) + "\n"
+                    for record in records
+                ),
+                encoding="utf-8",
+            )
+
+            destination, measurements = convert_file(source, layout="wide")
+
+            with destination.open(
+                "r",
+                newline="",
+                encoding="utf-8-sig",
+            ) as converted:
+                result = list(csv.DictReader(converted, delimiter=";"))
+            sensor_1039 = "sensor_1039__variable_3__Grados celcius [°C]"
+            sensor_1041 = "sensor_1041__variable_3__Grados celcius [°C]"
+            self.assertEqual(destination, Path(directory) / "history.wide.csv")
+            self.assertEqual(measurements, 3)
+            self.assertEqual(len(result), 2)
+            self.assertEqual(result[0]["fecha"], "2026-04-22T15:34:24")
+            self.assertEqual(result[0][sensor_1039], "20.5")
+            self.assertEqual(result[0][sensor_1041], "21.801")
+            self.assertEqual(result[1]["fecha"], "2026-04-22T15:38:54")
+            self.assertEqual(result[1][sensor_1039], "20.8")
+            self.assertEqual(result[1][sensor_1041], "")
+
     def test_default_name_supports_plain_ndjson(self):
         self.assertEqual(
             default_csv_path(Path("history.ndjson")),
             Path("history.csv"),
+        )
+        self.assertEqual(
+            default_csv_path(Path("history.ndjson.gz"), layout="wide"),
+            Path("history.wide.csv"),
         )
 
     def test_expands_wildcards_for_powershell(self):

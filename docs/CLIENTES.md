@@ -111,6 +111,14 @@ python ndjson_to_csv.py descargas/*.ndjson.gz
 Por defecto, el CSV se ordena globalmente por `fecha`, `id_sensor` e `id_dato`.
 Este orden es distinto del orden técnico de paginación del NDJSON.
 
+Para herramientas que esperan una fila por instante y una columna por variable:
+
+```bash
+python ndjson_to_csv.py descargas/*.ndjson.gz --layout wide
+```
+
+La misma opción durante una descarga es `--csv --csv-layout wide`.
+
 ## PHP
 
 Ejemplo con la extensión cURL:
